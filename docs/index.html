@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Transcribing Piano Music with Timestamps. NeurIPS 2026 Spotlight."><title>Rubato: Transcribing Piano Music with Timestamps</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"></head>
+<body><main>
+<section class="paper-card" aria-labelledby="paper-title"><div class="spotlight" aria-hidden="true"></div><div class="paper-content">
+<p class="conference">NeurIPS 2026 <span class="spotlight-word">Spotlight</span></p>
+<div class="centered-logo"><img class="title-logo" src="rubato-logo.svg" width="242" height="91" alt="Rubato"></div>
+<h1 id="paper-title">Transcribing Piano Music with Timestamps</h1>
+<p class="authors"><strong>Nazif Can Tamer</strong><span class="medium middle-author">Victoria Ebert</span><span class="middle-author">Guang Yang</span><strong>Noah A. Smith</strong></p>
+<div class="actions"><a class="paper-link" href="https://arxiv.org/abs/2605.24291">Paper</a><a class="secondary-link" href="https://rubatoscore.com/demo">Demo</a><a class="secondary-link" href="https://github.com/nctamer/rubato-transcription">GitHub</a><a class="secondary-link" href="#citation" id="open-citation">Cite</a></div></div></section>
+<div class="content">
+<section class="explanation" aria-label="About the representation and model"><div class="explanation-row"><img class="explanation-image" src="assets/sheet-music.png" alt="Grand staff piano notation">
+                    <p>Western staff notation is one of the most sophisticated human languages. It captures melody, rhythm, phrasing, and structure in a form musicians can read, interpret, and discuss. However, generating this abstract notation — especially in a way that would support human creative interactions with audio — has been a pain point for modern AI. Existing formats are extremely verbose for AI generation. Worse, they force the musician to give up direct interaction with audio just to obtain the notational abstractions they can read.</p></div>
+<div class="explanation-row"><img class="explanation-image" src="assets/intervals-moments.png" alt="Intervals and Moments visualization">
+                    <p><strong>Intervals and Moments</strong> (InterMo) merges human-readable notation and audio grounding in a single representation designed for autoregressive generation. This requires the model to decode the audio moment by moment, and enables users to follow along the sheet music and visually inspect the <em>rubato</em> — where a phrase leans forward, where it lingers, and where expressive timing reshapes the written pulse — directly against the recording.</p></div>
+<div class="explanation-row"><img class="explanation-image architecture-image" src="assets/architecture.png" alt="Rubato architecture">
+                    <p><strong>Rubato</strong> is a prompt-conditioned encoder–decoder that generates InterMo sequences at different abstraction layers (time-aligned notation, performed note events, or beat/downbeat annotations). Unlike prior systems, Rubato requires no music-specific modeling: a standard speech recognition architecture, repurposed as-is, turns out to be all you need for generating readable, inspectable, audio-grounded sheet music. The result: you can follow the score in sync with the recording and feel the <em>rubato</em> — the expressive timing that gives each performance its character.</p></div></section>
+<details id="citation" class="citation"><summary>Citation · NeurIPS 2026</summary><div class="citation-top"><a href="citation.bib" download>Download BibTeX</a><button id="copy-citation" type="button">Copy BibTeX</button></div><pre><code id="bibtex">@inproceedings{tamer2026rubato,
+  title={Rubato: Transcribing Piano Music with Timestamps},
+  author={Tamer, Nazif Can and Ebert, Victoria and Yang, Guang and Smith, Noah A.},
+  booktitle={Advances in Neural Information Processing Systems},
+  year={2026}
+}</code></pre><p id="copy-status" role="status"></p></details>
+<footer><a href="https://github.com/nctamer/rubato-transcription/blob/main/LICENSE">Code license</a></footer></div></main>
+<script src="site.js" defer></script></body></html>

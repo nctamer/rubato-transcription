@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rubato-transcription"
+version = "0.3.0"
+description = "Rubato: Transcribing Piano Music with Timestamps"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+dependencies = ["torch>=2.0", "numpy>=1.21"]
+
+[project.optional-dependencies]
+audio = ["soundfile"]
+fast-resample = ["scipy"]
+
+[project.scripts]
+rubato = "rubato.cli:main"
+rubato-convert = "rubato.convert.__main__:main"
+intermo-lite = "rubato.convert.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["rubato", "rubato.*"]

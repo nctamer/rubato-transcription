@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use Rubato, please cite the paper below."
+title: "Rubato: Transcribing Piano Music with Timestamps"
+type: software
+version: 0.3.0
+license: AGPL-3.0-only
+repository-code: "https://github.com/nctamer/rubato-transcription"
+authors:
+  - family-names: Tamer
+    given-names: Nazif Can
+  - family-names: Ebert
+    given-names: Victoria
+  - family-names: Yang
+    given-names: Guang
+  - family-names: Smith
+    given-names: Noah A.
+preferred-citation:
+  type: conference-paper
+  title: "Rubato: Transcribing Piano Music with Timestamps"
+  authors:
+    - family-names: Tamer
+      given-names: Nazif Can
+    - family-names: Ebert
+      given-names: Victoria
+    - family-names: Yang
+      given-names: Guang
+    - family-names: Smith
+      given-names: Noah A.
+  year: 2026
+  collection-title: "Advances in Neural Information Processing Systems"
