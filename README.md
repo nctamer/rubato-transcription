@@ -10,7 +10,7 @@ Rubato transcribes piano recordings into score notation, performed notes, and be
 
 ## Quick start
 
-This repository provides the lightweight inference runtime. You need **Python 3.9+, PyTorch, and NumPy**. PCM WAV input and the bundled converters work without NeMo, Docker, C++ compilation, or external notation software.
+This branch of the repository provides the lightweight inference runtime. You need **Python 3.9+, PyTorch, and NumPy**. PCM WAV input and the bundled converters work without NeMo, Docker, C++ compilation, or external notation software.
 
 ```bash
 # Install the inference runtime and InterMo-lite converter.
@@ -67,7 +67,7 @@ rubato rubato.ckpt piece.wav --mode beats --out-dir out
 intermo-lite beats out/piece.beats.txt out/piece.csv
 ```
 
-InterMo-lite is included in the installation. It uses Python's standard library for conversion; the native InterMo C++ library is not required. `rubato-convert` is an alias for the same converter.
+InterMo-lite is included in the installation. It uses Python's standard library for conversion; the native InterMo C++ library is not required for this inference branch.
 
 ## Decoding and checkpoint
 
@@ -88,7 +88,7 @@ It monitors attention for possible decoding failures and retries flagged windows
 - [Interactive demo](https://rubatoscore.com/demo)
 - [GitHub releases](https://github.com/nctamer/rubato-transcription/releases): checkpoint and release files.
 - Hugging Face model page: coming soon.
-- Native InterMo library and development/training instructions: links to follow.
+- Native InterMo library and development/training instructions: see the training branch.
 
 ## Citation
 
