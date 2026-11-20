@@ -4,7 +4,7 @@ The model (`Rubato`) needs torch + numpy; the converters (`rubato.convert`: Musi
 the Python standard library, so torch and numpy are imported lazily, on first use of `Rubato`."""
 
 __all__ = ["Rubato", "MODES"]
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 
 def __getattr__(name):

@@ -14,7 +14,7 @@ This branch of the repository provides the lightweight inference runtime. You ne
 
 ```bash
 # Install the inference runtime and InterMo-lite converter.
-pip install "git+https://github.com/nctamer/rubato-transcription.git@v1"
+pip install "git+https://github.com/nctamer/rubato-transcription.git@v1.0.1"
 
 # Download the self-contained FP32 inference checkpoint (~816 MB).
 curl -L --fail -o rubato.ckpt \

@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use Rubato, please cite the paper below."
 title: "Rubato: Transcribing Piano Music with Timestamps"
 type: software
-version: 0.3.0
+version: 0.3.1
 license: AGPL-3.0-only
 repository-code: "https://github.com/nctamer/rubato-transcription"
 authors:
