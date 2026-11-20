@@ -796,7 +796,8 @@ def _pair_ties(score):
 
 def read_score(text):
     """Rubato score text -> Score.  Raises ReadError on input it cannot repair."""
-    toks, raw_stamps, repairs, T = scan(text)
+    history = {}
+    toks, raw_stamps, repairs, T = scan(text, history=history)
     chunks = _segment(toks)
     k = 1
     for ch in chunks:
@@ -805,6 +806,7 @@ def read_score(text):
             k = k * bot // gcd(T * k, bot)
     if k != 1:
         toks, raw_stamps = _rescale(toks, raw_stamps, k)
+        history = {t * k: v for t, v in history.items()}
         T *= k
 
     ctx = _Ctx()
@@ -819,13 +821,18 @@ def read_score(text):
         nre[i] = nre[i + 1] if toks[i][0] == 'N' else i
     staff = carry
     t = 0
+    clock = 0                    # scanner clock (stamp keys); an empty bar does not advance it
+    clocks = []
     states = []
     for (bidx, a, b, top, bot, key, has) in chunks:
         plan.bar_start = t
+        clocks.append(clock)
         state, mlen, end_staff = _parse_bar(toks, a, b, staff, ctx, plan, nre)
         states.append(state)
         if end_staff:
             staff = end_staff
+        if mlen > 0:
+            clock += mlen
         if mlen <= 0 and bidx >= 0:
             mlen = _nominal(top, bot, T)
         t += mlen
@@ -851,7 +858,8 @@ def read_score(text):
     number = 0 if has_pickup else 1
     nominal_set = False
     cum = 0
-    for (bidx, a, b, top, bot, key, has), state in zip(chunks, states):
+    inserted = []                # (scanner clock, ticks) of empty bars given their nominal length
+    for (bidx, a, b, top, bot, key, has), state, c0 in zip(chunks, states, clocks):
         free = bidx >= 0 and toks[bidx][1].startswith('|N/A')
         pre_nominal_bare = bidx >= 0 and not free and not has and not nominal_set
         if has:
@@ -866,6 +874,8 @@ def read_score(text):
             if bidx < 0 and mlen <= 0:
                 continue
             bar = Bar(number, top, bot, key, mlen if mlen > 0 else _nominal(top, bot, T))
+            if mlen <= 0:
+                inserted.append((c0, bar.length))
             bar.pickup = number == 0 or pre_nominal_bare
             number += 1
             bar.start = cum
@@ -892,6 +902,8 @@ def read_score(text):
         cum += bar.length
         score.bars.append(bar)
 
+    if inserted:
+        raw_stamps = _shift_stamps(raw_stamps, history, inserted)
     score.staff_order = _staff_order(ctx.onset_order)
     rank = {s: k for k, s in enumerate(score.staff_order)}
     for bar in score.bars:
@@ -929,6 +941,22 @@ def read_score(text):
     F = _to_fractions(score, T)
     score.stamps = {F(t): s for t, s in raw_stamps.items()}
     return score
+
+
+def _shift_stamps(stamps, history, inserted):
+    """Move the stamps past each empty bar (scanner clock c, written with nominal length L) by L; of several
+    stamps at c, the first stays at c and the last moves to c + L."""
+    out = {}
+    for at, sec in stamps.items():
+        shift = sum(ln for c, ln in inserted if c < at)
+        here = sum(ln for c, ln in inserted if c == at)
+        vals = history.get(at, [sec])
+        if here and len(vals) > 1:
+            out[at + shift] = vals[0]
+            out[at + shift + here] = vals[-1]
+        else:
+            out[at + shift] = sec
+    return out
 
 
 def _nominal(top, bot, T):

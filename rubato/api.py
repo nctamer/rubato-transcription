@@ -195,7 +195,12 @@ class Rubato:
 
         def finish(pi):
             p = pieces.pop(pi)
-            text = P.merge_piece(p["texts"], p["plan"], mso)
+            if mode == "midi" and not mso:
+                text = P.merge_piece_midi(p["texts"], p["plan"])
+            elif mode == "score" and not mso:
+                text = P.merge_piece_score(p["texts"], p["plan"])
+            else:
+                text = P.merge_piece(p["texts"], p["plan"], mso)
             chunks = [dict(ids=i, text=t) for i, t in zip(p["ids"], p["texts"])]
             if dec.det is not None:
                 for ch, al in zip(chunks, p["align"]):

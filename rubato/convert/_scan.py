@@ -209,10 +209,11 @@ class _Open:
         self.lst = None
 
 
-def scan(text, T=None):
+def scan(text, T=None, history=None):
     """Rubato score text -> (tokens, stamps, repairs, unit).
 
-    unit: ticks per whole note (``tick_unit(text)`` unless given)."""
+    unit: ticks per whole note (``tick_unit(text)`` unless given).  history, if given, collects every stamp
+    in text order: clock -> [seconds, ...]."""
     if T is None:
         T = tick_unit(text)
     T16 = 16 * T
@@ -243,6 +244,11 @@ def scan(text, T=None):
     run_zero_closed = []
     run_zero_staff = ['']
     stamps = {}
+
+    def _put(at, sec):
+        stamps[at] = sec
+        if history is not None:
+            history.setdefault(at, []).append(sec)
     fresh = []                   # opens not yet followed by an interval (close_after < 0)
     run_opens = []               # opens created in the current run
     # scanner state
@@ -393,7 +399,7 @@ def scan(text, T=None):
             fts = None
         if not t:
             if fts is not None:
-                stamps[clock] = fts
+                _put(clock, fts)
             continue
         c0 = t[0]
         if not ('a' <= c0 <= 'g'):
@@ -408,7 +414,7 @@ def scan(text, T=None):
             have = True
             end_run(False)
             if fts is not None:
-                stamps[clock] = fts
+                _put(clock, fts)
             continue
         colon = t.find(':')
         if (colon > 0 and colon + 1 < len(t) and ';' not in t and t[0].isascii() and t[0].isalpha()
@@ -432,13 +438,13 @@ def scan(text, T=None):
             end_run(False)
             open_grace_group.clear()
             if fts is not None:
-                stamps[clock] = fts
+                _put(clock, fts)
             continue
         if ';' in t and c0.isalpha():          # chord symbol (not part of this output)
             repair('chord_symbol_stripped')
             pending = False
             if fts is not None:
-                stamps[clock] = fts
+                _put(clock, fts)
             continue
         if 'A' <= c0 <= 'G':
             info = ocache.get(t)
@@ -450,10 +456,10 @@ def scan(text, T=None):
             if junk:
                 repair('junk_token')
                 if fts is not None:
-                    stamps[clock] = fts
+                    _put(clock, fts)
                 continue
             if fts is not None:
-                stamps[clock] = fts
+                _put(clock, fts)
             if midi is None:
                 repair('unknown_bracket_token')
                 continue
@@ -511,10 +517,10 @@ def scan(text, T=None):
             if junk:
                 repair('junk_token')
                 if fts is not None:
-                    stamps[clock] = fts
+                    _put(clock, fts)
                 continue
             if fts is not None:
-                stamps[clock] = fts
+                _put(clock, fts)
             if midi is None:
                 repair('unmatched_release')
                 continue
@@ -590,7 +596,7 @@ def scan(text, T=None):
                     repair(r)
                 clock = clock + v
                 if fts is not None:
-                    stamps[clock] = fts
+                    _put(clock, fts)
                 emit(('D', v) if v != 0 else ('G', 'zero'))
                 duration_emitted(v)
                 open_grace_group.clear()
@@ -632,14 +638,14 @@ def scan(text, T=None):
             icache[t_key] = (v, tuple(r for r in rep for _ in range(rep[r] - r0.get(r, 0))))
             clock = clock + v
             if fts is not None:
-                stamps[clock] = fts
+                _put(clock, fts)
             emit(('D', v) if v != 0 else ('G', 'zero'))
             duration_emitted(v)
             open_grace_group.clear()
             continue
         repair('junk_token')
         if fts is not None:
-            stamps[clock] = fts
+            _put(clock, fts)
     resolve_run_graces()
 
     for lb in sorted(staves):

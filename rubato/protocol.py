@@ -185,3 +185,176 @@ def merge_piece(chunk_texts_raw, plan, merge_start_offset=0.0):
     """Stitched transcript from per-window texts (task tokens are stripped from every window but the first)."""
     texts = [strip_task_tokens(t or '') if i > 0 else (t or '') for i, t in enumerate(chunk_texts_raw)]
     return stitch_chunks(texts, plan['starts'], plan['max_times'], merge_start_offset)
+
+
+# Notes still sounding at a window cut lose their release with the discarded text. merge_piece_midi closes them
+# with the release in the window's stopping stamp group, else the next window's leading release of the pitch,
+# else at the cut.
+_MIDI_TOK = re.compile(r'<\|CC64:(?:on|off)\|>|<\|vel:\d+\|>|<\|(\d+(?:\.\d+)?)\|>|([A-Ga-g]#?\d+)')
+
+
+def _open_pitches(segment):
+    """Pitch names (upper case) still sounding at the end of a midi-mode segment (release < onset at one stamp)."""
+    events, pending = [], []
+    for m in _MIDI_TOK.finditer(segment):
+        if m.group(1):
+            t = float(m.group(1))
+            events += [(t, 0 if tok.islower() else 1, tok.upper()) for tok in pending]
+            pending = []
+        elif m.group(2):
+            pending.append(m.group(2))
+    events.sort(key=lambda e: (e[0], e[1]))
+    active = set()
+    for _, on, p in events:
+        (active.add if on else active.discard)(p)
+    return active
+
+
+def _stop_group_releases(transcript, max_time):
+    """(stamp, {PITCH}) of the releases in the first stamp group past max_time, or (None, set())."""
+    last = 0
+    for m in _TIMESTAMP_RE.finditer(transcript):
+        if float(m.group(1)) > max_time:
+            grp = transcript[last:m.start()]
+            toks = [x.group(2) for x in _MIDI_TOK.finditer(grp) if x.group(2)]
+            return float(m.group(1)), {t.upper() for t in toks if t[0].islower()}
+        last = m.end()
+    return None, set()
+
+
+def _leading_releases(transcript):
+    """{PITCH} released in a window before any onset of that pitch in it."""
+    out, seen, pending = set(), set(), []
+    for m in _MIDI_TOK.finditer(transcript):
+        if m.group(1):
+            for tok in pending:
+                if tok[0].isupper():
+                    seen.add(tok.upper())
+                elif tok.upper() not in seen:
+                    out.add(tok.upper())
+            pending = []
+        elif m.group(2):
+            pending.append(m.group(2))
+    return out
+
+
+def merge_piece_midi(chunk_texts_raw, plan):
+    """merge_piece for midi-mode text (merge_start_offset 0), closing the notes left open at every cut."""
+    texts = [strip_task_tokens(t or '') if i > 0 else (t or '') for i, t in enumerate(chunk_texts_raw)]
+    n = len(texts)
+    parts = []
+    for i, (tx, start) in enumerate(zip(texts, plan['starts'])):
+        cut = plan['max_times'][i]
+        seg = extract_segment_up_to_time(tx, cut)
+        if i < n - 1:
+            open_ = _open_pitches(seg)
+            if open_:
+                add = []
+                t, rel = _stop_group_releases(tx, cut)
+                own = sorted(open_ & rel)
+                if own:
+                    add.append(' '.join(p.lower() for p in own) + f'<|{t:.2f}|>')
+                    open_ -= set(own)
+                rest = sorted(open_ - _leading_releases(texts[i + 1]))
+                if rest:
+                    add.append(' '.join(p.lower() for p in rest) + f'<|{cut:.2f}|>')
+                if add:
+                    seg = (seg + ' ' + ' '.join(add)).strip()
+        if seg.strip():
+            parts.append(shift_timestamps_by_offset(seg, start))
+    return ' '.join(parts)
+
+
+# Score mode, per staff: a note open at a cut is closed by the next window's leading release of its pitch, else
+# at the next window's first interval.
+_SCORE_PITCH = re.compile(r'^([A-Ga-g])(#{1,2}|-{1,2})?(-?\d+)')
+_SCORE_INTERVAL = re.compile(r'^\d+/\d+$')
+_FENCE = re.compile(r'<\|[^|]*\|>')
+_SEMI = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
+
+
+def _score_tokens(text):
+    """[(kind, value, raw index)] with kind in staff / interval / on / off / other; stamps stripped."""
+    out = []
+    for k, raw in enumerate(text.split()):
+        t = _FENCE.sub('', raw)
+        if not t:
+            continue
+        if t.endswith(':') and len(t) > 1 and t[:-1].isalnum():
+            out.append(('staff', t[:-1], k))
+        elif _SCORE_INTERVAL.match(t):
+            out.append(('interval', t, k))
+        else:
+            m = _SCORE_PITCH.match(t)
+            if m and not t.startswith('|'):
+                acc = m.group(2) or ''
+                midi = (12 * (int(m.group(3)) + 1) + _SEMI[m.group(1).upper()]
+                        + acc.count('#') - acc.count('-'))
+                out.append(('on' if m.group(1).isupper() else 'off', (midi, t[:m.end()].lower()), k))
+            else:
+                out.append(('other', t, k))
+    return out
+
+
+def _score_open(segment, staff):
+    """({(staff, midi): release spelling} open at the end, staff current at the end)."""
+    open_ = {}
+    for kind, v, _ in _score_tokens(segment):
+        if kind == 'staff':
+            staff = v
+        elif kind == 'on':
+            open_[(staff, v[0])] = v[1]
+        elif kind == 'off':
+            open_.pop((staff, v[0]), None)
+    return open_, staff
+
+
+def _score_leading_releases(segment, staff):
+    out, seen = set(), set()
+    for kind, v, _ in _score_tokens(segment):
+        if kind == 'staff':
+            staff = v
+        elif kind == 'on':
+            seen.add((staff, v[0]))
+        elif kind == 'off' and (staff, v[0]) not in seen:
+            out.add((staff, v[0]))
+    return out
+
+
+def merge_piece_score(chunk_texts_raw, plan):
+    """merge_piece for score-mode text (merge_start_offset 0), closing the notes left open at every cut."""
+    texts = [strip_task_tokens(t or '') if i > 0 else (t or '') for i, t in enumerate(chunk_texts_raw)]
+    segs = [extract_segment_up_to_time(tx, plan['max_times'][i]) for i, tx in enumerate(texts)]
+    staff = None
+    open_ = {}
+    for i in range(len(segs)):
+        if i > 0 and open_:
+            lead = _score_leading_releases(segs[i], staff)
+            pending = {key: name for key, name in open_.items() if key not in lead}
+            if pending:
+                raw = segs[i].split()
+                toks = _score_tokens(segs[i])
+                first = next((k for kind, _, k in toks if kind == 'interval'), None)
+                cur = staff
+                for kind, v, k in toks:
+                    if first is not None and k > first:
+                        break
+                    if kind == 'staff':
+                        cur = v
+                add = []
+                for st in sorted({s for s, _ in pending}, key=str):
+                    add.append(f'{st}:' if st else '')
+                    add += sorted(name for (s, _), name in pending.items() if s == st)
+                add = [a for a in add if a]
+                nxt = raw[first + 1] if first is not None and first + 1 < len(raw) else ''
+                last_written = next((a[:-1] for a in reversed(add) if a.endswith(':')), None)
+                if cur is not None and cur != last_written and not (nxt.endswith(':') and nxt[:-1].isalnum()):
+                    add.append(f'{cur}:')
+                if first is None:
+                    raw = raw + add
+                else:
+                    raw = raw[:first + 1] + add + raw[first + 1:]
+                segs[i] = ' '.join(raw)
+        open_, staff = _score_open(segs[i], staff) if i < len(segs) - 1 else ({}, staff)
+    parts = [shift_timestamps_by_offset(s, st) for s, st in zip(segs, plan['starts']) if s.strip()]
+    return ' '.join(parts)
